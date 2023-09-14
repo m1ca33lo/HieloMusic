@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  djs-bot:
+    container_name: djs-bot
+    image: node:latest
+    restart: "unless-stopped"
+    stdin_open: true
+    tty: true
+    volumes:
+      - ../djs-bot:/djs-bot
+    ports:
+      - "8080:8080"
+    working_dir: /djs-bot
+    command: ["npm", "run", "${ENABLE:-start}"]
+
+  dashboard:
+    container_name: dashboard
+    image: node:latest
+    restart: "unless-stopped"
+    stdin_open: true
+    tty: true
+    volumes:
+      - ../dashboard:/dashboard
+    ports:
+      - "3000:3000"
+    working_dir: /dashboard
+    command: ["npm", "run", "dev"]
+    depends_on:
+      djs-bot:
+        condition: service_started
+
+  postgres-db:
+    image: postgres:15.2-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD:  root
+      POSTGRES_USER:      root
+      POSTGRES_DB:        base
+      PGPORT:             5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U root -d base'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  lavalink:
+    image: fredboat/lavalink:latest
+    container_name: lavalink
+    restart: unless-stopped
+    hostname: docker.lavalink
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml
+    ports:
+      - 2333:2333
+
+volumes:
+  postgres_data:
